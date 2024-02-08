@@ -1,14 +1,36 @@
 import React, { useEffect } from "react";
-import { setCurserPosition } from "./utils/setCurserPosition";
 import { insertText } from "./utils/insertText";
 import { readLine } from "./utils/readLine";
 import { removeText } from "./utils/removeText";
+import { setCurserPosition } from "./utils/setCurserPosition";
 import { uploadImage } from "./utils/uploadImage";
 
 export interface MessageType {
   type: "none" | "success" | "error";
   text: string;
 }
+
+export interface Metadata {
+  title: string;
+  excerpt: string;
+  date: Date;
+  cover: string;
+  category: string;
+  tags: string[];
+  isDraft: boolean;
+}
+
+const initialMetadata: Metadata = localStorage.getItem("metadata")
+  ? JSON.parse(localStorage.getItem("metadata") as string)
+  : {
+      title: "",
+      excerpt: "",
+      date: new Date(),
+      cover: "",
+      category: "",
+      tags: [],
+      isDraft: true,
+    };
 
 interface EditorContextProps {
   editorState: string;
@@ -24,10 +46,15 @@ interface EditorContextProps {
   editorRef: React.RefObject<HTMLTextAreaElement>;
   message: MessageType;
   clearMessage: () => void;
+  metadata: Metadata;
+  updateMetadata: (
+    item: keyof Metadata,
+    value: string | string[] | boolean | Date
+  ) => void;
 }
 
 export const EditorContext = React.createContext<EditorContextProps>({
-  editorState: "",
+  editorState: localStorage.getItem("editorState") || "",
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   updateEditorState: (_newState: string) => {},
   insertHeading: () => {},
@@ -45,6 +72,8 @@ export const EditorContext = React.createContext<EditorContextProps>({
     type: "none",
     text: "",
   },
+  metadata: initialMetadata,
+  updateMetadata: () => {},
 });
 
 export function EditorContextProvider({
@@ -52,12 +81,25 @@ export function EditorContextProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [editorState, setEditorState] = React.useState("");
+  const [editorState, setEditorState] = React.useState(
+    localStorage.getItem("editorState") || ""
+  );
   const editorRef = React.useRef<HTMLTextAreaElement>(null);
   const [message, setMessage] = React.useState<MessageType>({
     type: "none",
     text: "",
   });
+  const [metadata, setMetadata] = React.useState<Metadata>(initialMetadata);
+
+  const updateMetadata = (
+    item: keyof Metadata,
+    value: string | string[] | boolean | Date
+  ) => {
+    setMetadata({
+      ...metadata,
+      [item]: value,
+    });
+  };
 
   const clearMessage = () => {
     setMessage({
@@ -256,15 +298,9 @@ export function EditorContextProvider({
   };
 
   useEffect(() => {
-    const editorState = localStorage.getItem("editorState");
-    if (editorState) {
-      setEditorState(editorState);
-    }
-  }, []);
-
-  useEffect(() => {
     localStorage.setItem("editorState", editorState);
-  }, [editorState]);
+    localStorage.setItem("metadata", JSON.stringify(metadata));
+  }, [editorState, metadata]);
 
   return (
     <EditorContext.Provider
@@ -282,6 +318,8 @@ export function EditorContextProvider({
         insertPhoto,
         insertLink,
         editorRef,
+        metadata,
+        updateMetadata,
       }}
     >
       {children}
